@@ -10,32 +10,49 @@ function renderFiles(){const root=$("#fileList");root.innerHTML="";Object.keys(f
 function switchFile(name){if(editor)files[current]=editor.getValue();current=name;if(editor)editor.setValue(files[name]||"");else $("#editor").value=files[name]||"";$("#activeFile").textContent=name;renderFiles();dirty=false;$("#saveStatus").textContent="ذخیره محلی"}
 function save(){files[current]=editor.getValue();try{localStorage.setItem(STORAGE,JSON.stringify({files,current}));dirty=false;$("#saveStatus").textContent="ذخیره شد ✓";$("#saveStatus").style.color="var(--green)";$("#runtimeStatus").textContent="ذخیره محلی انجام شد"}catch(e){showError("ذخیره‌سازی ناموفق: "+e.message)}}
 function showError(s){$("#errors").textContent=s;document.querySelector('[data-tab="errors"]').click()}
-function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement("script");script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>reject(new Error("بارگیری نشد: "+src));document.head.appendChild(script)})}
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const script=document.createElement("script");
+    script.src=src;
+    script.async=true;
+    script.onload=()=>resolve(script);
+    script.onerror=()=>{script.remove();reject(new Error("بارگیری فایل موتور ناموفق بود: "+src));};
+    document.head.appendChild(script);
+  });
+}
 async function boot(){
-  $("#pythonStatus").textContent="در حال بارگیری موتور پایتون…";
-  $("#runtimeStatus").textContent="لطفاً کمی صبر کن";
-  $("#runBtn").disabled=true;
+  const status=$("#pythonStatus"), runtime=$("#runtimeStatus"), runBtn=$("#runBtn"), output=$("#output");
+  status.textContent="در حال بارگیری موتور پایتون…";
+  runtime.textContent="در حال اتصال به منبع اول";
+  runBtn.disabled=true;
   const failures=[];
-  for(const source of PYODIDE_SOURCES){
+  for(let i=0;i<PYODIDE_SOURCES.length;i++){
+    const source=PYODIDE_SOURCES[i];
     try{
-      if(typeof window.loadPyodide!=="function") await loadScript(source.script);
-      if(typeof window.loadPyodide!=="function") throw new Error("فایل موتور پایتون بارگیری شد اما loadPyodide در دسترس نیست.");
+      // پاک‌سازی loader قبلی تا تلاش بعدی واقعاً از CDN جایگزین استفاده کند.
+      try{delete window.loadPyodide;}catch(_){window.loadPyodide=undefined;}
+      const oldScripts=[...document.scripts].filter(s=>s.src===source.script);
+      oldScripts.forEach(s=>s.remove());
+      status.textContent="بارگیری پایتون ("+(i+1)+"/"+PYODIDE_SOURCES.length+")…";
+      runtime.textContent="در حال دریافت فایل‌های موتور؛ ممکن است چند لحظه طول بکشد";
+      await loadScript(source.script);
+      if(typeof window.loadPyodide!=="function") throw new Error("فایل بارگیری شد اما تابع loadPyodide پیدا نشد.");
       pyodide=await window.loadPyodide({indexURL:source.base});
-      $("#pythonStatus").textContent="Python آماده است ✓";
-      $("#runtimeStatus").textContent="محیط آماده";
-      $("#output").textContent="محیط پایتون آماده است. برای اجرا روی «اجرای کد» بزن.";
-      $("#runBtn").disabled=false;
+      status.textContent="Python آماده است ✓";
+      runtime.textContent="محیط آماده";
+      output.textContent="محیط پایتون آماده است. برای اجرا روی «اجرای کد» بزن.";
+      runBtn.disabled=false;
       return;
     }catch(e){
-      failures.push(e.message||String(e));
+      failures.push("منبع "+(i+1)+": "+(e?.stack||e?.message||String(e)));
       pyodide=null;
-      $("#pythonStatus").textContent="تلاش برای اتصال جایگزین…";
+      try{delete window.loadPyodide;}catch(_){window.loadPyodide=undefined;}
     }
   }
-  $("#pythonStatus").textContent="بارگذاری پایتون ناموفق بود";
-  $("#runtimeStatus").textContent="اتصال را بررسی کن";
-  $("#output").textContent="موتور پایتون از هیچ‌کدام از منابع بارگیری نشد. اتصال اینترنت، فیلترشکن یا محدودیت شبکه را بررسی کن و سپس صفحه را تازه‌سازی کن.\n\nجزئیات:\n"+failures.join("\n");
-  $("#runBtn").disabled=false;
+  status.textContent="بارگذاری پایتون ناموفق بود";
+  runtime.textContent="اتصال را بررسی کن";
+  output.textContent="موتور پایتون بارگیری نشد. این خطا معمولاً به مسدود بودن CDN، اینترنت یا فایل‌های WASM مربوط است.\n\nجزئیات فنی برای عیب‌یابی:\n"+failures.join("\n\n");
+  runBtn.disabled=false;
 }
 function setupEditor(){editor=CodeMirror.fromTextArea($("#editor"),{mode:"python",theme:"material-darker",lineNumbers:true,indentUnit:4,tabSize:4,indentWithTabs:false,lineWrapping:false,autocorrect:false,extraKeys:{"Ctrl-Enter":run,"Cmd-Enter":run,"Ctrl-S":save,"Cmd-S":save}});editor.on("change",markDirty);renderFiles()}
 async function run(){if(!pyodide){$("#output").textContent="محیط پایتون آماده نشده است. وضعیت بارگیری را در بالای پنل خروجی بررسی کن؛ اگر ناموفق بود، اینترنت یا محدودیت CDN را بررسی و صفحه را تازه‌سازی کن.";return}files[current]=editor.getValue();$("#output").textContent="در حال اجرا…";$("#errors").textContent="هنوز خطایی ثبت نشده است.";$("#runtimeStatus").textContent="در حال اجرا…";try{pyodide.setStdout({batched:s=>{const out=$("#output");if(out.textContent==="در حال اجرا…")out.textContent="";out.textContent+=s+"\n"}});pyodide.setStderr({batched:s=>{$("#errors").textContent+=($("#errors").textContent.startsWith("هنوز")?"":"\n")+s}});$("#output").textContent="";await pyodide.runPythonAsync(files[current]);if(!$("#output").textContent)$("#output").textContent="برنامه اجرا شد؛ خروجی متنی تولید نشد.";$("#runtimeStatus").textContent="اجرا تمام شد ✓";document.querySelector('[data-tab="output"]').click()}catch(e){$("#errors").textContent=String(e);$("#runtimeStatus").textContent="خطا در اجرا";document.querySelector('[data-tab="errors"]').click()}}
