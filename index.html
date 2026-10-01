@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>On-py | ویرایشگر آنلاین پایتون</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.js" rel="preload" as="script">
+<link href="style.css" rel="stylesheet">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="pyicon">Py</span><span>On-<b>py</b><small>Python Studio</small></span></div>
+  <div class="top-actions"><button id="newProject">＋ پروژه جدید</button><button id="saveBtn">ذخیره محلی</button><button id="themeBtn" title="تغییر پوسته">☼</button></div>
+</header>
+<main class="layout">
+  <aside class="sidebar">
+    <div class="side-title">کاوشگر <button id="newFile" title="فایل جدید">＋</button></div>
+    <div id="fileList"></div>
+    <div class="side-note">ذخیره‌سازی فقط روی همین مرورگر انجام می‌شود.</div>
+  </aside>
+  <section class="workspace">
+    <div class="tab"><span>🐍</span><span id="activeFile">main.py</span><span class="tab-status" id="saveStatus">ذخیره نشده</span></div>
+    <textarea id="editor"># به On-py خوش آمدی!
+name = "Python"
+print(f"Hello, {name}!")
+print("شروع برنامه‌نویسی مبارک 🚀")
+
+for i in range(1, 6):
+    print(f"شمارش: {i}")
+
+number = 7
+print(f"مربع {number} برابر است با {number ** 2}")</textarea>
+    <div class="editor-actions"><button class="run" id="runBtn">▶ اجرای کد</button><button id="clearBtn">پاک کردن خروجی</button><span id="runtimeStatus">آماده</span></div>
+  </section>
+  <section class="output-panel">
+    <div class="output-head"><button class="active" data-tab="output">خروجی</button><button data-tab="errors">خطاها</button><span id="pythonStatus">در حال آماده‌سازی پایتون…</span></div>
+    <pre id="output" aria-live="polite">در حال بارگذاری محیط Python در مرورگر…</pre>
+    <pre id="errors" class="hidden" aria-live="polite">هنوز خطایی ثبت نشده است.</pre>
+  </section>
+</main>
+<footer><span>On-py · ویرایشگر آنلاین پایتون</span><span>نسخه 1.0.0</span><span>Powered by Pyodide</span></footer>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.js"></script>
+<script src="app.js"></script>
+</body></html>
