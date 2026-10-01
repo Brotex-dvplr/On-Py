@@ -55,9 +55,56 @@ async function boot(){
   runBtn.disabled=false;
 }
 function setupEditor(){editor=CodeMirror.fromTextArea($("#editor"),{mode:"python",theme:"material-darker",lineNumbers:true,indentUnit:4,tabSize:4,indentWithTabs:false,lineWrapping:false,autocorrect:false,extraKeys:{"Ctrl-Enter":run,"Cmd-Enter":run,"Ctrl-S":save,"Cmd-S":save}});editor.on("change",markDirty);renderFiles()}
-async function run(){if(!pyodide){$("#output").textContent="محیط پایتون آماده نشده است. وضعیت بارگیری را در بالای پنل خروجی بررسی کن؛ اگر ناموفق بود، اینترنت یا محدودیت CDN را بررسی و صفحه را تازه‌سازی کن.";return}files[current]=editor.getValue();$("#output").textContent="در حال اجرا…";$("#errors").textContent="هنوز خطایی ثبت نشده است.";$("#runtimeStatus").textContent="در حال اجرا…";try{pyodide.setStdout({batched:s=>{const out=$("#output");if(out.textContent==="در حال اجرا…")out.textContent="";out.textContent+=s+"\n"}});pyodide.setStderr({batched:s=>{$("#errors").textContent+=($("#errors").textContent.startsWith("هنوز")?"":"\n")+s}});$("#output").textContent="";await pyodide.runPythonAsync(files[current]);if(!$("#output").textContent)$("#output").textContent="برنامه اجرا شد؛ خروجی متنی تولید نشد.";$("#runtimeStatus").textContent="اجرا تمام شد ✓";document.querySelector('[data-tab="output"]').click()}catch(e){$("#errors").textContent=String(e);$("#runtimeStatus").textContent="خطا در اجرا";document.querySelector('[data-tab="errors"]').click()}}
+async function run(){
+  files[current]=editor.getValue();
+  $("#output").textContent="در حال اجرا…";
+  $("#errors").textContent="هنوز خطایی ثبت نشده است.";
+  $("#runtimeStatus").textContent="در حال اجرا…";
+  try{
+    if(pyodide){
+      pyodide.setStdout({batched:s=>{const out=$("#output");if(out.textContent==="در حال اجرا…")out.textContent="";out.textContent+=s+"\\n"}});
+      pyodide.setStderr({batched:s=>{$("#errors").textContent+=($("#errors").textContent.startsWith("هنوز")?"":"\\n")+s}});
+      $("#output").textContent="";
+      await pyodide.runPythonAsync(files[current]);
+      if(!$("#output").textContent)$("#output").textContent="برنامه اجرا شد؛ خروجی متنی تولید نشد.";
+      $("#runtimeStatus").textContent="اجرا در مرورگر تمام شد ✓";
+      document.querySelector('[data-tab="output"]').click();
+      return;
+    }
+    const response=await fetch("http://127.0.0.1:8765/run",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({code:files[current]})
+    });
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||"اجراکننده محلی خطا داد.");
+    $("#output").textContent=result.stdout||"(خروجی متنی تولید نشد)";
+    $("#errors").textContent=result.stderr||"خطایی ثبت نشد.";
+    $("#runtimeStatus").textContent="اجرا با Python سیستم ✓";
+    document.querySelector('[data-tab="'+(result.stderr?"errors":"output")+'"]').click();
+  }catch(e){
+    $("#errors").textContent=String(e)+"\\n\\nاگر موتور مرورگر آماده نیست، اجراکننده محلی را طبق راهنمای README اجرا کن.";
+    $("#runtimeStatus").textContent="خطا در اجرا";
+    document.querySelector('[data-tab="errors"]').click();
+  }
+}
+async function connectLocalPython(){
+  $("#runtimeStatus").textContent="در حال بررسی Python محلی…";
+  try{
+    const r=await fetch("http://127.0.0.1:8765/health",{cache:"no-store"});
+    const data=await r.json();
+    if(!r.ok||!data.python)throw new Error(data.error||"Python پیدا نشد.");
+    pyodide=null;
+    $("#pythonStatus").textContent="Python محلی متصل ✓";
+    $("#runtimeStatus").textContent="Python "+data.version+" · روی همین کامپیوتر";
+    $("#output").textContent="به Python نصب‌شده روی کامپیوتر متصل شدی. حالا کد را اجرا کن.";
+    $("#runBtn").disabled=false;
+  }catch(e){
+    $("#runtimeStatus").textContent="اتصال محلی برقرار نشد";
+    showError("اجراکننده محلی پاسخ نداد. ابتدا Python 3 را نصب و فایل onpy_runner.py را اجرا کن.\\n\\n"+e.message);
+  }
+}
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));$("#output").classList.toggle("hidden",b.dataset.tab!=="output");$("#errors").classList.toggle("hidden",b.dataset.tab!=="errors")});
-$("#runBtn").onclick=run;$("#saveBtn").onclick=save;$("#clearBtn").onclick=()=>{$("#output").textContent="";$("#errors").textContent="هنوز خطایی ثبت نشده است."};$("#themeBtn").onclick=()=>document.body.classList.toggle("light");
+$("#runBtn").onclick=run;$("#localPythonBtn").onclick=connectLocalPython;$("#saveBtn").onclick=save;$("#clearBtn").onclick=()=>{$("#output").textContent="";$("#errors").textContent="هنوز خطایی ثبت نشده است."};$("#themeBtn").onclick=()=>document.body.classList.toggle("light");
 $("#newFile").onclick=()=>{const name=prompt("نام فایل جدید (مثلاً helper.py):");if(!name)return;if(!/^[\w.-]+\.py$/i.test(name)){alert("نام فایل باید با .py تمام شود و از حروف انگلیسی، عدد، نقطه یا خط تیره استفاده کند.");return}if(files[name]){alert("این فایل وجود دارد.");return}files[current]=editor.getValue();files[name]="# فایل جدید\n";switchFile(name);markDirty()};
 $("#newProject").onclick=()=>{if(!confirm("پروژه فعلی را با یک پروژه خالی جایگزین کنیم؟ ابتدا در صورت نیاز ذخیره کن."))return;files={"main.py":"# پروژه جدید On-py\nprint('Hello, world!')"};switchFile("main.py");markDirty()};
 try{const saved=JSON.parse(localStorage.getItem(STORAGE));if(saved&&saved.files&&Object.keys(saved.files).length){files=saved.files;current=saved.current in files?saved.current:Object.keys(saved.files)[0];$("#editor").value=files[current]}}catch(e){}
