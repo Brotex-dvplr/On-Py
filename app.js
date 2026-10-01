@@ -62,8 +62,8 @@ async function run(){
   $("#runtimeStatus").textContent="در حال اجرا…";
   try{
     if(pyodide){
-      pyodide.setStdout({batched:s=>{const out=$("#output");if(out.textContent==="در حال اجرا…")out.textContent="";out.textContent+=s+"\\n"}});
-      pyodide.setStderr({batched:s=>{$("#errors").textContent+=($("#errors").textContent.startsWith("هنوز")?"":"\\n")+s}});
+      pyodide.setStdout({batched:s=>{const out=$("#output");if(out.textContent==="در حال اجرا…")out.textContent="";out.textContent+=s+"\n"}});
+      pyodide.setStderr({batched:s=>{$("#errors").textContent+=($("#errors").textContent.startsWith("هنوز")?"":"\n")+s}});
       $("#output").textContent="";
       await pyodide.runPythonAsync(files[current]);
       if(!$("#output").textContent)$("#output").textContent="برنامه اجرا شد؛ خروجی متنی تولید نشد.";
@@ -82,7 +82,7 @@ async function run(){
     $("#runtimeStatus").textContent="اجرا با Python سیستم ✓";
     document.querySelector('[data-tab="'+(result.stderr?"errors":"output")+'"]').click();
   }catch(e){
-    $("#errors").textContent=String(e)+"\\n\\nاگر موتور مرورگر آماده نیست، اجراکننده محلی را طبق راهنمای README اجرا کن.";
+    $("#errors").textContent=String(e)+"\n\nاگر موتور مرورگر آماده نیست، اجراکننده محلی را طبق راهنمای README اجرا کن.";
     $("#runtimeStatus").textContent="خطا در اجرا";
     document.querySelector('[data-tab="errors"]').click();
   }
@@ -100,7 +100,7 @@ async function connectLocalPython(){
     $("#runBtn").disabled=false;
   }catch(e){
     $("#runtimeStatus").textContent="اتصال محلی برقرار نشد";
-    showError("اجراکننده محلی پاسخ نداد. ابتدا Python 3 را نصب و فایل onpy_runner.py را اجرا کن.\\n\\n"+e.message);
+    showError("اجراکننده محلی پاسخ نداد. ابتدا Python 3 را نصب و فایل onpy_runner.py را اجرا کن.\n\n"+e.message);
   }
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));$("#output").classList.toggle("hidden",b.dataset.tab!=="output");$("#errors").classList.toggle("hidden",b.dataset.tab!=="errors")});
