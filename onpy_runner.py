@@ -16,7 +16,7 @@ TIMEOUT_SECONDS = 8
 class Handler(BaseHTTPRequestHandler):
     server_version = "OnPyLocalRunner/1.0"
 
-    def headers(self, origin=None):
+    def send_cors_headers(self, origin=None):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         if origin in ALLOWED_ORIGINS:
@@ -29,7 +29,7 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self, status, payload, origin=None):
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
-        self.headers(origin)
+        self.send_cors_headers(origin)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
